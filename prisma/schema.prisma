@@ -1,0 +1,200 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth Models (NextAuth) ───────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role      @default(EMPLOYEE)
+  accounts      Account[]
+  sessions      Session[]
+
+  // CRM relations
+  assignedLeads Lead[]     @relation("AssignedTo")
+  calls         Call[]
+  demos         Demo[]
+  activities    Activity[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  EMPLOYEE
+}
+
+// ─── CRM Models ───────────────────────────────────────────
+
+model Lead {
+  id        String     @id @default(cuid())
+  firstName String
+  lastName  String
+  email     String?
+  phone     String?
+  company   String?
+  businessType String?
+  status    LeadStatus @default(NEW)
+  source    String?
+  notes     String?
+
+  assignedToId String?
+  assignedTo   User?   @relation("AssignedTo", fields: [assignedToId], references: [id])
+
+  calls     Call[]
+  demos     Demo[]
+  activities Activity[]
+
+  convertedToClientId String?  @unique
+  convertedToClient   Client?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  DEMO_SCHEDULED
+  DEMO_COMPLETED
+  NEGOTIATION
+  WON
+  LOST
+}
+
+model Client {
+  id           String       @id @default(cuid())
+  businessName String
+  contactName  String
+  email        String?
+  phone        String?
+  businessType String?
+  plan         String?
+  monthlyValue Float        @default(0)
+  status       ClientStatus @default(ACTIVE)
+  notes        String?
+  startDate    DateTime     @default(now())
+
+  leadId String? @unique
+  lead   Lead?   @relation(fields: [leadId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum ClientStatus {
+  ACTIVE
+  PAUSED
+  CHURNED
+}
+
+model Call {
+  id          String   @id @default(cuid())
+  leadId      String
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  twilioSid   String?
+  direction   String   @default("outbound")
+  status      String   @default("completed")
+  duration    Int      @default(0)
+  recordingUrl String?
+  transcript  String?
+  notes       String?
+  calledAt    DateTime @default(now())
+
+  createdAt DateTime @default(now())
+}
+
+model Demo {
+  id          String     @id @default(cuid())
+  leadId      String
+  lead        Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User       @relation(fields: [userId], references: [id])
+  scheduledAt DateTime
+  status      DemoStatus @default(SCHEDULED)
+  notes       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum DemoStatus {
+  SCHEDULED
+  COMPLETED
+  NO_SHOW
+  CANCELLED
+}
+
+model Activity {
+  id     String       @id @default(cuid())
+  type   ActivityType
+  detail String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+  leadId String?
+  lead   Lead?  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+enum ActivityType {
+  CALL_MADE
+  DEMO_SCHEDULED
+  DEMO_COMPLETED
+  LEAD_CREATED
+  LEAD_IMPORTED
+  LEAD_STATUS_CHANGED
+  CLIENT_CREATED
+  NOTE_ADDED
+}

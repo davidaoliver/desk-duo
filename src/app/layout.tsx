@@ -1,8 +1,5 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import { jsonLd } from "@/lib/metadata";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -41,16 +38,8 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd.organization) }}
-        />
-      </head>
       <body className={`${inter.className} antialiased`}>
-        <Header />
-        <main className="pt-16">{children}</main>
-        <Footer />
+        {children}
       </body>
     </html>
   );
